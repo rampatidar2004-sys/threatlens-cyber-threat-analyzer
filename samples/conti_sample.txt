@@ -1,0 +1,10 @@
+Incident summary: ransomware intrusion attributed to the Conti group, April 2022.
+
+On 11th Apr 22 the operators gained entry to the network by logging in through the VPN with valid accounts whose passwords had been harvested earlier.
+On 12th Apr 22 the intruders ran Mimikatz on a compromised server to dump credentials from LSASS memory, which gave them domain administrator rights.
+Later the same day they used AdFind to enumerate other computers and domain controllers in Active Directory, a form of remote system discovery.
+On 12th and 13th Apr 22 the actor moved laterally by copying Cobalt Strike beacons to the C$ admin shares over SMB and launching them remotely with PsExec, which created services on the target hosts.
+On 14th Apr 22 the operators used Rclone to upload several hundred gigabytes of stolen files to a MEGA cloud storage account.
+On 15th Apr 22 the ransomware was deployed to all servers and workstations and the files were encrypted, and a ransom note was left on every machine.
+Backups were also deleted with vssadmin to prevent the victim from recovering the data.
+Defenders recommend enforcing multi-factor authentication and monitoring for unusual remote service creation.

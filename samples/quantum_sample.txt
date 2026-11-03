@@ -1,0 +1,9 @@
+Incident summary: Quantum-style ransomware intrusion, timeline in UTC.
+
+At 18:56 UTC a user opened a malicious shortcut file (LNK) delivered inside a disk image, which executed a loader on the workstation.
+At 18:58 UTC a scheduled task was created so that the implant would keep running after a reboot.
+Between 18:57 and 20:59 UTC the actor ran commands to gather system information, network configuration and active network connections, queried domain trusts, and listed remote systems.
+From 20:43 to 21:21 UTC the Cobalt Strike beacon communicated with its command and control server, and additional tools were downloaded to the host through ingress tool transfer using the Windows command shell.
+At 20:53 UTC the attacker dumped credentials from LSASS memory.
+Between 21:08 and 22:06 UTC the attacker used Remote Desktop Protocol to move laterally to other servers in the domain.
+From 22:28 to 22:40 UTC the ransomware executed across the hosts and the data was encrypted for impact.

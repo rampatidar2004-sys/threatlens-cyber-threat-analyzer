@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ThreatLens</title>
+<style>
+:root{
+  /* ---- Palette: "Burnt sienna" ---- */
+  --vermilion:#E35336; --beige:#F5F5DC; --sand:#F4A460; --sienna:#A0522D;
+  /* ---- Neutrals derived from the palette ---- */
+  --bg:var(--beige); --panel:#FFFDF2; --panel2:#FAF6E2; --line:#E3D6B5; --line2:#D2BD94;
+  --ink:#2E1A10; --text:var(--ink); --muted:#7A5B49;
+  --sand-soft:#FBE3CA; --sand-softer:#FDF1E1; --sienna-dark:#7E3F20; --bad:#B3261E;
+  /* ---- Typography: one place for every font and size ---- */
+  --font-ui:system-ui,-apple-system,"Segoe UI","Helvetica Neue",Roboto,Arial,sans-serif;
+  --font-mono:ui-monospace,"SF Mono",Menlo,Consolas,"Cascadia Code",monospace;
+  --fs-xs:11.5px; --fs-sm:12.5px; --fs-md:14px; --fs-lg:16px; --fs-xl:20px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);font-size:var(--fs-md);line-height:1.45}
+body{background:radial-gradient(1100px 480px at 75% -12%,var(--sand-soft) 0%,transparent 62%),var(--bg);min-height:100vh}
+h2,h3,h4{font-family:var(--font-ui)}
+header{display:flex;align-items:center;gap:16px;padding:12px 22px;background:var(--sienna);color:var(--beige);border-bottom:3px solid var(--vermilion);position:sticky;top:0;z-index:20}
+.logo{display:flex;align-items:center;gap:10px}
+.logo svg{width:36px;height:36px}
+.logo b{font-size:var(--fs-xl);letter-spacing:.2px;font-weight:700}
+.logo span{display:block;font-size:var(--fs-xs);color:var(--beige);margin-top:1px}
+.chips{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:7px;font-size:var(--fs-sm);padding:5px 11px;border:1px solid rgba(245,245,220,.4);border-radius:999px;background:rgba(46,26,16,.18);color:var(--beige)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--beige)}
+.dot.ok{background:var(--sand);box-shadow:0 0 0 3px rgba(244,164,96,.35)} .dot.bad{background:#FF9B84} .dot.warn{background:var(--beige)}
+.layout{display:grid;grid-template-columns:380px minmax(0,1fr);gap:18px;padding:18px 22px;align-items:start}
+@media (max-width:1050px){.layout{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:0 8px 24px rgba(160,82,45,.07)}
+.card h3{margin:0 0 10px;font-size:var(--fs-sm);letter-spacing:1.1px;text-transform:uppercase;color:var(--sienna);font-weight:700}
+label{display:block;font-size:var(--fs-sm);color:var(--muted);margin:10px 0 5px;font-weight:600}
+textarea,input[type=text],select{width:100%;background:#fff;color:var(--ink);border:1px solid var(--line2);border-radius:9px;padding:9px 10px;font:inherit;outline:none}
+textarea{font-family:var(--font-mono);font-size:var(--fs-sm);line-height:1.5;min-height:250px;resize:vertical}
+textarea:focus,input:focus,select:focus{border-color:var(--vermilion);box-shadow:0 0 0 3px rgba(227,83,54,.18)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row>*{flex:1}
+button{font:inherit;cursor:pointer;border-radius:9px;border:1px solid var(--line2);background:var(--sand-softer);color:var(--ink);padding:8px 12px;transition:.15s}
+button:hover{border-color:var(--sienna);background:var(--sand-soft)}
+button.primary{background:var(--sienna);color:#fff;border:0;font-weight:700;padding:12px 14px;font-size:15px;width:100%;margin-top:14px;box-shadow:0 6px 18px rgba(160,82,45,.35)}
+button.primary:hover{background:var(--sienna-dark)}
+button.primary:disabled{opacity:.6;cursor:wait}
+button.small{padding:6px 10px;font-size:var(--fs-sm)}
+.drop{border:1.5px dashed var(--line2);border-radius:10px;padding:10px;text-align:center;color:var(--muted);font-size:var(--fs-sm);margin-top:8px;cursor:pointer;background:var(--panel2)}
+.drop:hover,.drop.over{border-color:var(--vermilion);background:var(--sand-softer)}
+.seg{display:flex;border:1px solid var(--line2);border-radius:9px;overflow:hidden;background:#fff}
+.seg button{border:0;border-radius:0;flex:1;background:transparent;padding:8px 6px;font-size:var(--fs-sm);color:var(--muted)}
+.seg button:hover{background:var(--sand-softer)}
+.seg button.on{background:var(--sienna);color:#fff;font-weight:700}
+.note{font-size:var(--fs-sm);color:var(--muted);line-height:1.5;margin-top:8px}
+.note b{color:var(--ink)}
+/* pipeline stepper */
+.pipe{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+@media (max-width:900px){.pipe{grid-template-columns:repeat(2,1fr)}}
+.step{border:1px solid var(--line);border-radius:11px;padding:9px 10px;background:#fff;position:relative;min-height:74px}
+.step .n{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--sand-soft);font-size:11px;font-weight:700;color:var(--sienna-dark)}
+.step .t{font-size:var(--fs-sm);font-weight:700;margin-top:6px}
+.step .d{font-size:var(--fs-xs);color:var(--muted);margin-top:3px;line-height:1.35}
+.step.run{border-color:var(--vermilion);box-shadow:0 0 0 2px rgba(227,83,54,.22)} .step.run .n{background:var(--vermilion);color:#fff;animation:pulse 1s infinite}
+.step.done{border-color:var(--sienna)} .step.done .n{background:var(--sienna);color:#fff}
+.step.err{border-color:var(--bad)} .step.err .n{background:var(--bad);color:#fff}
+@keyframes pulse{50%{transform:scale(1.18)}}
+.tabs{display:flex;gap:6px;margin:16px 0 0;flex-wrap:wrap;align-items:flex-end}
+.tab{padding:9px 16px;border-radius:9px 9px 0 0;border:1px solid var(--line);border-bottom:0;background:var(--panel2);color:var(--muted);cursor:pointer;font-weight:600;font-size:var(--fs-md)}
+.tab:hover{color:var(--ink)}
+.tab.on{background:var(--panel);color:var(--ink);border-color:var(--line2);box-shadow:inset 0 3px 0 var(--vermilion)}
+.toolbar{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;padding-bottom:6px}
+.view{border:1px solid var(--line2);border-radius:0 12px 12px 12px;background:var(--panel);padding:14px;min-height:340px}
+.paper{background:#FFFDF6;border-radius:10px;overflow:auto;border:1px solid var(--line)}
+.paper svg{display:block;width:100%;height:auto}
+.empty{display:grid;place-items:center;text-align:center;color:var(--muted);padding:70px 20px;line-height:1.7}
+.empty b{color:var(--ink);font-size:var(--fs-lg)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:12px}
+.stat{background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.stat b{display:block;font-size:19px;color:var(--sienna-dark)}.stat span{font-size:var(--fs-xs);color:var(--muted)}
+.alertbox{background:var(--sand-soft);border:1px solid var(--sand);color:#5E3010;border-radius:9px;padding:8px 10px;font-size:var(--fs-sm);margin-bottom:10px}
+table{width:100%;border-collapse:collapse;font-size:var(--fs-sm)}
+th{position:sticky;top:0;background:#F3EAD0;text-align:left;color:var(--muted);font-weight:700;padding:8px;border-bottom:1px solid var(--line2);font-size:var(--fs-xs);letter-spacing:.5px;text-transform:uppercase}
+td{padding:8px;border-bottom:1px solid #EFE4C8;vertical-align:top}
+td .sub{color:var(--muted);font-size:var(--fs-xs);margin-top:2px}
+tr.link{cursor:pointer} tr.link:hover td{background:var(--sand-softer)}
+.tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:var(--fs-xs);border:1px solid var(--line2);color:var(--sienna-dark);background:var(--sand-softer);font-weight:600}
+.tag.good{border-color:var(--sienna);color:#fff;background:var(--sienna)}
+.bar{height:6px;border-radius:4px;background:#EBDDBF;width:70px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:6px}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--sand),var(--vermilion))}
+details{border:1px solid var(--line);border-radius:10px;margin-bottom:10px;background:#fff}
+summary{cursor:pointer;padding:10px 12px;font-weight:700;color:var(--ink)}
+details>div{padding:0 12px 12px}
+pre{background:var(--ink);border-radius:8px;padding:10px;overflow:auto;font-family:var(--font-mono);font-size:var(--fs-sm);max-height:340px;margin:0;color:var(--beige)}
+.guide{margin-top:14px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 18px}
+.guide h4{margin:0 0 8px;font-size:var(--fs-sm);letter-spacing:1px;text-transform:uppercase;color:var(--sienna);font-weight:700}
+.guide h4+*{margin-top:0} .guide h4:not(:first-child){margin-top:16px}
+.guide ol{margin:0;padding-left:20px;line-height:1.65;color:var(--ink)}
+.guide li{margin:3px 0}
+.drawer{position:fixed;top:0;right:0;width:min(440px,94vw);height:100vh;background:var(--panel);border-left:3px solid var(--vermilion);box-shadow:-20px 0 60px rgba(46,26,16,.25);transform:translateX(105%);transition:.25s;z-index:40;padding:20px;overflow:auto}
+.drawer.open{transform:none}
+.drawer h2{margin:6px 0 4px;font-size:var(--fs-xl)} .drawer .x{position:absolute;top:12px;right:14px}
+.drawer h3{margin:16px 0 4px;font-size:var(--fs-xs);letter-spacing:1px;text-transform:uppercase;color:var(--sienna);font-weight:700}
+.drawer blockquote{margin:10px 0;padding:10px 12px;border-left:3px solid var(--vermilion);background:var(--sand-softer);border-radius:0 8px 8px 0;color:var(--ink);line-height:1.55}
+.drawer ul{padding-left:18px;line-height:1.7;margin:6px 0}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--beige);border:1px solid var(--sand);padding:10px 16px;border-radius:10px;z-index:60;box-shadow:0 10px 40px rgba(46,26,16,.4)}
+.hl{background:rgba(244,164,96,.45);border-radius:3px}
+.sk g.tech:hover rect{filter:brightness(.97);stroke-width:2.2}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 40 40"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F4A460"/><stop offset="1" stop-color="#E35336"/></linearGradient></defs><rect x="2" y="2" width="36" height="36" rx="10" fill="url(#lg)"/><path d="M9 26l7-9 5 6 4-5 6 8" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="16" cy="17" r="2.2" fill="#fff"/><circle cx="25" cy="18" r="2.2" fill="#fff"/><circle cx="31" cy="26" r="2.2" fill="#fff"/></svg>
+    <div><b>ThreatLens</b><span>Offline attack anatomy · timeline · comic &mdash; local LLM + MITRE ATT&amp;CK RAG</span></div>
+  </div>
+  <div class="chips">
+    <span class="chip"><i class="dot" id="dOllama"></i><span id="tOllama">Ollama…</span></span>
+    <span class="chip"><i class="dot ok"></i><span id="tKB">MITRE KB…</span></span>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="card" id="inputCard">
+    <h3>1 · Threat report</h3>
+    <div class="row" style="margin-bottom:8px" id="sampleRow"></div>
+    <textarea id="text" spellcheck="false" placeholder="Paste a ransomware / malware whitepaper here (plain text).&#10;Or drop a .txt .md .html .pdf file below.&#10;Tip: save the web page as HTML while online, analyse it offline."></textarea>
+    <div class="drop" id="drop">Drop a report file here or click to browse<input type="file" id="file" accept=".txt,.md,.html,.htm,.pdf" hidden></div>
+
+    <h3 style="margin-top:18px">2 · Settings</h3>
+    <div class="seg" id="modeSeg">
+      <button data-m="llm" class="on">Local LLM + RAG</button>
+      <button data-m="rag">RAG only (no LLM)</button>
+    </div>
+    <div id="llmOpts">
+      <label>Local model (Ollama)</label>
+      <select id="model"></select>
+      <label>Embedding model (optional, improves retrieval)</label>
+      <select id="embed"></select>
+    </div>
+    <div class="row">
+      <div><label>Top-K per sentence</label><select id="topk"><option selected>5</option><option>8</option><option>10</option></select></div>
+      <div><label>Comic language</label><select id="lang"><option>English</option><option>Hinglish (Roman Hindi)</option><option>Hindi</option></select></div>
+    </div>
+    <label>Attack name (for titles)</label>
+    <input type="text" id="title" placeholder="auto-detect, e.g. Conti Ransomware">
+    <button class="primary" id="run">Analyse attack ▸</button>
+    <div class="note" id="engNote"></div>
+  </aside>
+
+  <section>
+    <div class="card">
+      <h3>Pipeline &middot; same stages as the paper&rsquo;s Fig.&nbsp;1, all local</h3>
+      <div class="pipe" id="pipe"></div>
+    </div>
+
+    <div class="tabs" id="tabs">
+      <div class="tab on" data-v="timeline">Timeline</div>
+      <div class="tab" data-v="comic">Comic story</div>
+      <div class="tab" data-v="evidence">Evidence</div>
+      <div class="tab" data-v="inspect">Inspect</div>
+      <div class="toolbar">
+        <button class="small" id="bPng" title="Save the current Timeline or Comic as an image">⬇ Image (PNG)</button>
+        <button class="small" id="bJson" title="Same format as the paper's Fig. 3">⬇ JSON</button>
+      </div>
+    </div>
+    <div class="view" id="view"></div>
+  </section>
+</div>
+
+<aside class="drawer" id="drawer"></aside>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const FONT_UI = 'system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Roboto, Arial, sans-serif'.replace(/"/g, "'");
+const FONT_COMIC = "'Comic Sans MS', 'Comic Neue', 'Chalkboard SE', 'Segoe Print', 'Trebuchet MS', sans-serif";
+const cx2d = document.createElement("canvas").getContext("2d");
+const tw = (t, size, weight, fam) => { cx2d.font = `${weight} ${size}px ${fam}`; return cx2d.measureText(t).width; };
+function wrap(text, maxW, size, weight, fam) {
+  const words = String(text).split(/\s+/).filter(Boolean), lines = []; let cur = "";
+  for (const w of words) {
+    const t = cur ? cur + " " + w : w;
+    if (tw(t, size, weight, fam) <= maxW || !cur) cur = t; else { lines.push(cur); cur = w; }
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+function mix(hex, a) { const n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255; const m = c => Math.round(c * a + 255 * (1 - a)); return `rgb(${m(r)},${m(g)},${m(b)})`; }
+function toast(msg) { const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 3200); }
+const store = { get(k, d) { try { const v = localStorage.getItem("av_" + k); return v === null ? d : v; } catch { return d; } }, set(k, v) { try { localStorage.setItem("av_" + k, v); } catch { } } };
+
+const C = { pre: "#A89A82", access: "#F4A460", priv: "#A0522D", move: "#C8963E", exfil: "#6B3519", impact: "#E35336" };
+const TCOL = {
+  "reconnaissance": C.pre, "resource-development": C.pre,
+  "initial-access": C.access, "execution": C.access, "persistence": C.access,
+  "privilege-escalation": C.priv, "stealth": C.priv, "defense-evasion": C.priv, "defense-impairment": C.priv, "credential-access": C.priv,
+  "discovery": C.move, "lateral-movement": C.move,
+  "collection": C.exfil, "command-and-control": C.exfil, "exfiltration": C.exfil,
+  "impact": C.impact
+};
+const GROUPS = [["Pre-attack", C.pre], ["Access & execution", C.access], ["Privilege · credentials · stealth", C.priv], ["Discovery & movement", C.move], ["Collection · C2 · exfiltration", C.exfil], ["Impact", C.impact]];
+const col = t => TCOL[t] || C.pre;
+
+const STAGES = [
+  ["ingest", "Ingest & clean"], ["chunk", "Semantic chunking"], ["index", "Index MITRE KB"], ["retrieve", "Retrieve top-K"],
+  ["extract", "Extract techniques"], ["validate", "Validate vs MITRE"], ["compose", "Compose & draw"]
+];
+const S = { result: null, view: "timeline", status: null, mode: store.get("mode", "llm"), auto: false };
+
+/* ---------- pipeline stepper ---------- */
+function drawPipe(states = {}) {
+  $("#pipe").innerHTML = STAGES.map(([k, name], i) => {
+    const s = states[k] || { status: "", detail: "" };
+    return `<div class="step ${s.status}"><span class="n">${s.status === "done" ? "✓" : i + 1}</span><div class="t">${name}</div><div class="d">${esc(s.detail || "")}</div></div>`;
+  }).join("");
+}
+const pipeState = {};
+drawPipe();
+
+/* ---------- status / settings ---------- */
+async function loadStatus() {
+  try {
+    const st = await (await fetch("/api/status")).json(); S.status = st;
+    $("#tKB").textContent = `MITRE ATT&CK v${st.kb.attack_version} · ${st.kb.technique_count} techniques`;
+    const up = st.ollama.up;
+    $("#dOllama").className = "dot " + (up ? "ok" : "warn");
+    $("#tOllama").textContent = up ? `Ollama · ${st.ollama.models.length} model(s)` : "Ollama not detected";
+    const ms = st.ollama.models, chat = ms.filter(m => !/embed|bge|minilm|nomic|arctic/i.test(m)), emb = ms.filter(m => /embed|bge|minilm|nomic|arctic/i.test(m));
+    const pref = store.get("model", "");
+    const pick = chat.includes(pref) ? pref : (chat.find(m => /qwen3/i.test(m)) || chat[0] || "");
+    $("#model").innerHTML = chat.length ? chat.map(m => `<option ${m === pick ? "selected" : ""}>${esc(m)}</option>`).join("") : `<option value="">— none installed —</option>`;
+    $("#embed").innerHTML = `<option value="">None (BM25 keyword retrieval)</option>` + emb.map(m => `<option>${esc(m)}</option>`).join("");
+    if (!chat.length && S.mode === "llm") { setMode("rag", true); S.auto = true; }
+    else if (chat.length && S.auto) { setMode("llm", true); S.auto = false; }
+    $("#engNote").innerHTML = up && chat.length
+      ? `<b>Local LLM mode</b>: the model only <b>chooses</b> among techniques retrieved from the official MITRE ATT&amp;CK data, and every ID is re-checked, so invented IDs are rejected.`
+      : `<b>No local model found, so keyword-only mode is on.</b> It works offline but finds fewer techniques. For the full pipeline start <b>Ollama</b> and run <code>ollama pull qwen3:4b</code>; this page notices automatically.`;
+  } catch (e) { $("#tOllama").textContent = "Server unreachable"; $("#dOllama").className = "dot bad"; }
+}
+function setMode(m, silent) {
+  S.mode = m; if (!silent) { store.set("mode", m); S.auto = false; }
+  document.querySelectorAll("#modeSeg button").forEach(b => b.classList.toggle("on", b.dataset.m === m));
+  $("#llmOpts").style.display = m === "llm" ? "" : "none";
+}
+document.querySelectorAll("#modeSeg button").forEach(b => b.onclick = () => setMode(b.dataset.m));
+window.addEventListener("focus", loadStatus);  // re-detect Ollama when you come back to this tab
+$("#model").onchange = e => store.set("model", e.target.value);
+
+/* ---------- samples & files ---------- */
+async function loadSamples() {
+  const list = await (await fetch("/api/samples")).json();
+  $("#sampleRow").innerHTML = list.map((s, i) => `<button class="small" data-i="${i}">Load ${esc(s.name)} sample</button>`).join("");
+  $("#sampleRow").querySelectorAll("button").forEach(b => b.onclick = () => { const s = list[+b.dataset.i]; $("#text").value = s.text; $("#title").value = s.name + " Ransomware"; });
+}
+async function uploadFile(f) {
+  const fd = new FormData(); fd.append("file", f);
+  const r = await (await fetch("/api/extract-text", { method: "POST", body: fd })).json();
+  if (r.error) return toast(r.error);
+  $("#text").value = r.text; toast(`Loaded ${r.name} (${r.text.length.toLocaleString()} characters)`);
+}
+const drop = $("#drop");
+drop.onclick = () => $("#file").click();
+$("#file").onchange = e => e.target.files[0] && uploadFile(e.target.files[0]);
+["dragenter", "dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => e.dataTransfer.files[0] && uploadFile(e.dataTransfer.files[0]));
+$("#text").addEventListener("keydown", e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) run(); });
+
+function guessTitle(t) {
+  const m = t.match(/\b([A-Z][A-Za-z0-9]{2,})\s+(ransomware|malware|group|campaign)\b/i);
+  return m ? `${m[1]} ${m[2][0].toUpperCase()}${m[2].slice(1).toLowerCase()}` : "Cyber Attack";
+}
+
+/* ---------- run ---------- */
+async function run() {
+  await loadStatus();
+  const text = $("#text").value.trim();
+  if (text.length < 40) return toast("Paste or upload a threat report first.");
+  const title = $("#title").value.trim() || guessTitle(text);
+  if (!$("#title").value.trim()) $("#title").value = title;
+  Object.keys(pipeState).forEach(k => delete pipeState[k]); drawPipe(); S.result = null;
+  $("#view").innerHTML = `<div class="empty"><div><b>Analysing…</b><br>watch the pipeline above</div></div>`;
+  const btn = $("#run"); btn.disabled = true; btn.textContent = "Working…";
+  const body = { text, title, mode: S.mode, model: $("#model").value, embed_model: $("#embed").value, top_k: +$("#topk").value, lang: $("#lang").value };
+  try {
+    const resp = await fetch("/api/analyze", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    if (!resp.ok) { const j = await resp.json(); throw new Error(j.error || resp.statusText); }
+    const reader = resp.body.getReader(), dec = new TextDecoder(); let buf = "";
+    for (; ;) {
+      const { value, done } = await reader.read(); if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i; while ((i = buf.indexOf("\n")) >= 0) { const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1); if (line) handle(JSON.parse(line)); }
+    }
+  } catch (e) { toast("Error: " + e.message); $("#view").innerHTML = `<div class="empty"><div><b>Something went wrong</b><br>${esc(e.message)}</div></div>`; }
+  btn.disabled = false; btn.textContent = "Analyse attack ▸";
+}
+function handle(m) {
+  if (m.type === "stage") { pipeState[m.stage] = { status: m.status === "done" ? "done" : "run", detail: m.detail }; drawPipe(pipeState); }
+  else if (m.type === "error") { toast(m.message); $("#view").innerHTML = `<div class="empty"><div><b>${esc(m.message)}</b></div></div>`; }
+  else if (m.type === "result") { S.result = m; renderAll(); }
+}
+$("#run").onclick = run;
+
+/* ---------- tabs ---------- */
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => { S.view = t.dataset.v; renderAll(); });
+function renderAll() {
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t.dataset.v === S.view));
+  const v = $("#view"), r = S.result;
+  if (!r) { v.innerHTML = `<div class="empty"><div><b>No analysis yet</b><br>Load a sample or paste a threat report, then press <b>Analyse attack</b>.<br>Everything — chunking, retrieval, LLM, drawing — runs on this computer.</div></div>`; return; }
+  const head = statsHtml(r);
+  if (!r.events.length) { v.innerHTML = head + `<div class="empty"><div><b>No attack techniques found</b><br>The report may be too short, or contains no explicit attacker behaviour. Try the Inspect tab, or switch to Local LLM mode.</div></div>`; return; }
+  if (S.view === "timeline") { v.innerHTML = head + `<div class="paper sk">${timelineSvg(r)}</div>` + timelineGuide(r); wireClicks(); }
+  else if (S.view === "comic") { v.innerHTML = head + `<div class="paper sk">${comicSvg(r)}</div>`; wireClicks(); }
+  else if (S.view === "evidence") v.innerHTML = head + evidenceHtml(r);
+  else v.innerHTML = head + inspectHtml(r);
+  document.querySelectorAll("tr.link").forEach(tr => tr.onclick = () => openDrawer(+tr.dataset.e, +tr.dataset.t));
+}
+function statsHtml(r) {
+  const s = r.stats;
+  const w = r.warnings.map(x => `<div class="alertbox">⚠ ${esc(x)}</div>`).join("");
+  return w + `<div class="stats">
+   <div class="stat"><b>${s.stages}</b><span>attack stages</span></div>
+   <div class="stat"><b>${s.techniques}</b><span>ATT&amp;CK techniques</span></div>
+   <div class="stat"><b>${s.sentences}</b><span>sentences · ${s.chunks} chunks</span></div>
+   <div class="stat"><b>${s.rejected}</b><span>LLM claims rejected</span></div>
+   <div class="stat"><b>${s.llm ? esc(s.llm) : "RAG-only"}</b><span>engine</span></div>
+   <div class="stat"><b>${s.seconds}s</b><span>runtime · offline</span></div></div>`;
+}
+function wireClicks() { document.querySelectorAll("[data-e][data-t]").forEach(g => g.onclick = () => openDrawer(+g.dataset.e, +g.dataset.t)); }
+
+/* ---------- label helpers ---------- */
+const sourceText = s => ({ "explicit-id": "ID in report", "rag-only": "keyword match", "llm+rag": "LLM + MITRE data" }[s] || s);
+function reasonText(t) {
+  if (t.source === "llm+rag") return t.reason || "chosen by the model from the retrieved techniques";
+  const say = x => x === "explicit-id" ? "technique ID written in the report"
+    : x === "name-match" ? "official technique name appears in the sentence"
+    : x.startsWith("alias:") ? `keyword “${x.slice(6)}” is linked to this technique`
+    : x.startsWith("tool:") ? `tool “${x.slice(5)}” is linked to this technique` : x;
+  const codes = String(t.reason || "").split(",").map(x => x.trim()).filter(Boolean);
+  const extra = t.source === "explicit-id" ? codes.filter(x => x !== "explicit-id") : codes;  // the Source label already says "ID in report"
+  return extra.map(say).join("; ") || (t.source === "explicit-id" ? "the report names this technique by its ID" : "matched by retrieval");
+}
+const firstSentence = t => { const m = String(t || "").match(/^.*?[.!?](\s|$)/); return (m ? m[0] : String(t || "")).trim(); };
+function timelineGuide(r) {
+  const basis = r.stats.order === "time" ? "the <b>dates written in the report</b>" : "the <b>order the report describes them</b> (not every stage has a date, so time order cannot be proven)";
+  const rows = r.events.map(e => `<tr class="link" data-e="${e.n - 1}" data-t="0"><td>${e.n}</td><td style="white-space:nowrap">${esc(e.time || "no date in report")}</td>
+    <td><b>${esc(e.tactic_name)}</b><div class="sub">${esc(firstSentence(e.tactic_desc))}</div></td>
+    <td>${e.techniques.map(t => `<span class="tag">${esc(t.id)}</span> ${esc(t.name.split(": ").slice(-1)[0])}`).join("<br>")}</td></tr>`).join("");
+  return `<div class="guide"><h4>How to read this timeline</h4><ol>
+    <li>Each <b>numbered box on the line</b> is an attack <b>stage</b>: a MITRE ATT&amp;CK <i>tactic</i>, meaning what the attacker was trying to achieve. Stages are ordered by ${basis}.</li>
+    <li>The <b>boxes above and below the line</b> are ATT&amp;CK <i>techniques</i>: how the attacker did it, with the official ID. A tool named in the report is shown in brackets.</li>
+    <li>An <b>italic note</b> inside a technique box means MITRE's official tactic for that technique differs from the stage it was reported in.</li>
+    <li>Colours group related tactics (see the legend under the diagram). <b>Click any technique</b> to read the exact sentence from the report that supports it.</li></ol>
+    <h4>Stage summary</h4><div style="overflow:auto"><table><thead><tr><th>#</th><th>When</th><th>Stage (tactic) and what it means</th><th>Techniques</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+}
+const techLabel = t => `${t.name}${t.tools.length ? " (" + t.tools.join(", ") + ")" : ""} : ${t.id}`;
+
+/* ---------- TIMELINE (paper Fig. 4/5 style) ---------- */
+function timelineSvg(r) {
+  const ev = r.events, N = ev.length;
+  const perRow = N <= 4 ? Math.max(N, 3) : Math.ceil(N / Math.ceil(N / 4)), colW = 250, padX = 44, gutter = N > perRow ? 56 : 0, W = perRow * colW + padX * 2 + gutter, gap = 38;
+  const rows = []; for (let i = 0; i < N; i += perRow) rows.push(ev.slice(i, i + perRow));
+  let y = 92, body = "";
+  const F = FONT_UI;
+  rows.forEach((row, ri) => {
+    const info = row.map((e, k) => {
+      const tl = wrap(e.tactic_name, 150, 14, 700, F), ml = wrap(e.time || "", 150, 12, 400, F);
+      const tH = 16 + tl.length * 17 + ml.length * 15 + 8, tW = 176;
+      const items = e.techniques.map(t => ({ t, lines: wrap(techLabel(t), 268, 12.5, 500, F), tag: t.off_stage ? "official tactic: " + t.tactic_name : "" }));
+      const widest = Math.max(...items.flatMap(it => it.lines.map(l => tw(l, 12.5, 500, F))), it0(items));
+      const bW = clamp(widest + 26, 150, 296);
+      const bH = 16 + items.reduce((a, it) => a + (it.tag ? 14 : 0) + it.lines.length * 16, 0) + (items.length - 1) * 11;
+      return { e, tl, ml, tH, tW, items, bW, bH, above: k % 2 === 0 };
+    });
+    function it0(items) { return Math.max(0, ...items.filter(i => i.tag).map(i => tw(i.tag, 11, 400, F))); }
+    const maxAbove = Math.max(0, ...info.filter(i => i.above).map(i => i.bH)), maxBelow = Math.max(0, ...info.filter(i => !i.above).map(i => i.bH)), maxT = Math.max(...info.map(i => i.tH));
+    const lineY = y + (maxAbove ? maxAbove + gap : 12) + maxT / 2;
+    body += `<line x1="${padX / 2}" y1="${lineY}" x2="${W - padX / 2}" y2="${lineY}" stroke="#2e1a10" stroke-width="3" stroke-linecap="round"/>`;
+    if (ri < rows.length - 1) body += `<text x="${W - 10}" y="${lineY - 8}" text-anchor="end" font-family="${F}" font-size="11" fill="#8c6e5a">continues ▾</text>`;
+    info.forEach((o, k) => {
+      const cx = padX + colW * (k + 0.5) + (perRow - row.length) * colW / 2 * 0, idx = o.e.n - 1, c = col(o.e.tactic);
+      // tactic box
+      body += `<g><rect x="${cx - o.tW / 2}" y="${lineY - o.tH / 2}" width="${o.tW}" height="${o.tH}" rx="9" fill="${mix(c, .16)}" stroke="${c}" stroke-width="2.2"/>`;
+      let ty = lineY - o.tH / 2 + 8;
+      o.tl.forEach(l => { ty += 17; body += `<text x="${cx}" y="${ty - 3}" text-anchor="middle" font-family="${F}" font-size="14" font-weight="700" fill="#2e1a10">${esc(l)}</text>`; });
+      o.ml.forEach(l => { ty += 15; body += `<text x="${cx}" y="${ty - 3}" text-anchor="middle" font-family="${F}" font-size="12" fill="#6b4a38">${esc(l)}</text>`; });
+      body += `<circle cx="${cx - o.tW / 2}" cy="${lineY - o.tH / 2}" r="11" fill="${c}"/><text x="${cx - o.tW / 2}" y="${lineY - o.tH / 2 + 4}" text-anchor="middle" font-family="${F}" font-size="11.5" font-weight="700" fill="#fff">${o.e.n}</text></g>`;
+      // technique box
+      const bx = cx - o.bW / 2, by = o.above ? lineY - o.tH / 2 - gap - o.bH : lineY + o.tH / 2 + gap;
+      const ay1 = o.above ? lineY - o.tH / 2 - 2 : lineY + o.tH / 2 + 2, ay2 = o.above ? by + o.bH + 3 : by - 3;
+      body += `<line x1="${cx}" y1="${ay1}" x2="${cx}" y2="${ay2}" stroke="#8c6e5a" stroke-width="1.8" marker-end="url(#ah)"/>`;
+      body += `<rect x="${bx}" y="${by}" width="${o.bW}" height="${o.bH}" rx="7" fill="#fff1dc" stroke="#a0522d" stroke-width="1.6"/>`;
+      let cy = by + 9;
+      o.items.forEach((it, j) => {
+        const gy = cy, hh = (it.tag ? 14 : 0) + it.lines.length * 16;
+        body += `<g class="tech" data-e="${idx}" data-t="${j}" style="cursor:pointer"><title>${esc(it.t.id + " — " + it.t.evidence)}</title><rect x="${bx + 3}" y="${gy - 4}" width="${o.bW - 6}" height="${hh + 4}" rx="4" fill="transparent"/>`;
+        if (it.tag) { cy += 12; body += `<text x="${cx}" y="${cy}" text-anchor="middle" font-family="${F}" font-size="11" font-style="italic" fill="#b8391f">${esc(it.tag)}</text>`; cy += 2; }
+        it.lines.forEach(l => { cy += 16; body += `<text x="${cx}" y="${cy - 4}" text-anchor="middle" font-family="${F}" font-size="12.5" font-weight="500" fill="#2e1a10">${esc(l)}</text>`; });
+        body += `</g>`;
+        if (j < o.items.length - 1) { cy += 6; body += `<line x1="${bx + 14}" y1="${cy - 1}" x2="${bx + o.bW - 14}" y2="${cy - 1}" stroke="#e8c9a0" stroke-dasharray="3 3"/>`; cy += 5; }
+      });
+    });
+    y = lineY + maxT / 2 + (maxBelow ? gap + maxBelow : 8) + 30;
+  });
+  // legend
+  let lx = padX, ly = y + 6, leg = "";
+  GROUPS.forEach(([n, c]) => { const iw = 28 + tw(n, 11.5, 400, F) + 16; if (lx + iw > W - padX && lx > padX) { lx = padX; ly += 22; } leg += `<rect x="${lx}" y="${ly}" width="14" height="14" rx="3" fill="${mix(c, .2)}" stroke="${c}" stroke-width="1.6"/><text x="${lx + 20}" y="${ly + 11.5}" font-family="${F}" font-size="11.5" fill="#6b4a38">${esc(n)}</text>`; lx += 28 + tw(n, 11.5, 400, F) + 16; });
+  const H = ly + 54;
+  const names = r.title;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" font-family="${F}">
+  <defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#8c6e5a"/></marker></defs>
+  <rect width="${W}" height="${H}" fill="#ffffff"/>
+  <text x="${padX}" y="40" font-size="23" font-weight="700" fill="#2e1a10">Attack anatomy &amp; timeline — ${esc(names)}</text>
+  <text x="${padX}" y="63" font-size="12.5" fill="#6b4a38">${r.stats.stages} stages · ${r.stats.techniques} techniques · MITRE ATT&amp;CK v${esc(r.stats.attack_version)} · ordered by ${r.stats.order === "time" ? "dates in the report" : "order of the report"} · click a technique for evidence</text>
+  ${body}${leg}
+  <text x="${padX}" y="${H - 14}" font-size="11" fill="#8c6e5a">Boxes beside the line = ATT&amp;CK techniques (tool in brackets) · italics = the technique's official tactic when it differs from the stage</text></svg>`;
+}
+
+/* ---------- COMIC ---------- */
+const MOOD = {
+  early: ["#c9703f", "#7a3e1d", "#3a2216"], dark: ["#a0522d", "#5a2e18", "#2e1a10"], indigo: ["#b8653a", "#6b3519", "#33190d"],
+  deep: ["#8a4a2b", "#4d2713", "#2a150b"], alarm: ["#e35336", "#8a2a14", "#4a140a"]
+};
+const MOODOF = { "reconnaissance": "early", "resource-development": "early", "initial-access": "early", "execution": "dark", "persistence": "dark", "privilege-escalation": "dark", "stealth": "dark", "defense-evasion": "dark", "defense-impairment": "dark", "credential-access": "dark", "discovery": "indigo", "lateral-movement": "indigo", "collection": "deep", "command-and-control": "deep", "exfiltration": "deep", "impact": "alarm" };
+
+function hacker(x, y, tac, k) {
+  const eye = tac === "impact" ? "#e35336" : "#f5f5dc", s = 0.92;
+  return `<g transform="translate(${x},${y}) scale(${s})">
+  <ellipse cx="0" cy="2" rx="46" ry="7" fill="#000" opacity=".28"/>
+  <rect x="-20" y="-30" width="15" height="32" rx="4" fill="#3a2216"/><rect x="5" y="-30" width="15" height="32" rx="4" fill="#3a2216"/>
+  <path d="M-30 -62 Q-40 -34 -34 -22 L34 -22 Q40 -34 30 -62 Q0 -72 -30 -62Z" fill="#7a3e1d" stroke="#2e1a10" stroke-width="3"/>
+  <path d="M-8 -60 L-8 -34 M8 -60 L8 -34" stroke="#d98b5f" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="0" cy="-86" r="27" fill="#7a3e1d" stroke="#2e1a10" stroke-width="3"/>
+  <ellipse cx="0" cy="-84" rx="16" ry="17" fill="#1f110a"/>
+  <ellipse cx="-6.5" cy="-88" rx="3.4" ry="2.6" fill="${eye}"/><ellipse cx="6.5" cy="-88" rx="3.4" ry="2.6" fill="${eye}"/>
+  <path d="M-8 -77 Q0 -71 8 -77" stroke="${eye}" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+  <path d="M-30 -52 Q-14 -36 6 -40 L8 -30 Q-18 -22 -34 -40Z" fill="#7a3e1d" stroke="#2e1a10" stroke-width="2.4"/>
+  <g transform="translate(6,-52) rotate(-8)"><rect x="0" y="-4" width="42" height="26" rx="3" fill="#f1dcc0" stroke="#2e1a10" stroke-width="2.4"/><rect x="4" y="0" width="34" height="17" fill="#2e1a10"/><path d="M8 5h14M8 10h22" stroke="#f5f5dc" stroke-width="1.6" opacity=".9"/><path d="M-3 24h48" stroke="#2e1a10" stroke-width="3" stroke-linecap="round"/></g>
+  </g>`;
+}
+function building(x, y, tac, glow) {
+  let w = "";
+  const lit = tac === "impact" ? "#e35336" : "#f4a460";
+  for (let r = 0; r < 4; r++) for (let c = 0; c < 3; c++) {
+    const on = (r * 3 + c + (glow || 0)) % 3 !== 1 || tac === "impact";
+    w += `<rect x="${x + 12 + c * 28}" y="${y - 104 + r * 24}" width="16" height="14" rx="2" fill="${on ? lit : "#5a2e18"}"/>`;
+  }
+  return `<g><rect x="${x}" y="${y - 122}" width="100" height="122" fill="#9c5a37" stroke="#2e1a10" stroke-width="3"/><rect x="${x - 6}" y="${y - 130}" width="112" height="12" fill="#7a3e1d" stroke="#2e1a10" stroke-width="3"/>${w}<rect x="${x + 38}" y="${y - 24}" width="24" height="24" fill="#3a2216" stroke="#2e1a10" stroke-width="2"/><text x="${x + 50}" y="${y - 136}" text-anchor="middle" font-family="${FONT_COMIC}" font-size="9.5" font-weight="700" fill="#f4d9b0">VICTIM ORG</text></g>`;
+}
+const P = {
+  "reconnaissance": (x, y) => `<g transform="translate(${x},${y})"><circle cx="-16" cy="0" r="14" fill="#8a4a2b" stroke="#2e1a10" stroke-width="3"/><circle cx="16" cy="0" r="14" fill="#8a4a2b" stroke="#2e1a10" stroke-width="3"/><rect x="-6" y="-6" width="12" height="12" fill="#2e1a10"/><circle cx="-16" cy="0" r="7" fill="#f5f5dc"/><circle cx="16" cy="0" r="7" fill="#f5f5dc"/><path d="M30 -2 L74 -22 M30 4 L76 8 M30 10 L72 34" stroke="#f8c78f" stroke-width="2" stroke-dasharray="4 5" opacity=".8"/></g>`,
+  "resource-development": (x, y) => `<g transform="translate(${x},${y})"><rect x="-28" y="-10" width="56" height="30" rx="4" fill="#d9772b" stroke="#2e1a10" stroke-width="3"/><path d="M-12 -10v-8h24v8" fill="none" stroke="#2e1a10" stroke-width="3"/><rect x="-5" y="2" width="10" height="9" fill="#f8c78f" stroke="#2e1a10" stroke-width="2"/></g>`,
+  "initial-access": (x, y) => `<g transform="translate(${x},${y})"><path d="M-60 6 h30 M-66 -6 h26 M-58 18 h22" stroke="#f4a460" stroke-width="3" stroke-linecap="round" opacity=".7"/><rect x="-28" y="-18" width="58" height="38" rx="4" fill="#fff" stroke="#2e1a10" stroke-width="3"/><path d="M-28 -18 L1 5 L30 -18" fill="none" stroke="#2e1a10" stroke-width="3"/><circle cx="26" cy="-18" r="9" fill="#e35336" stroke="#2e1a10" stroke-width="2.5"/><text x="26" y="-14.5" text-anchor="middle" font-family="${FONT_COMIC}" font-size="12" font-weight="700" fill="#fff">!</text></g>`,
+  "execution": (x, y) => `<g transform="translate(${x},${y})"><rect x="-38" y="-26" width="76" height="52" rx="5" fill="#2e1a10" stroke="#2e1a10" stroke-width="3"/><rect x="-38" y="-26" width="76" height="11" fill="#8a4a2b"/><text x="-30" y="2" font-family="Consolas, monospace" font-size="19" font-weight="700" fill="#f4a460">&gt;_ run</text><path d="M-22 14 h30" stroke="#f4a460" stroke-width="3"/></g>`,
+  "persistence": (x, y) => `<g transform="translate(${x},${y})"><circle r="26" fill="#fff" stroke="#2e1a10" stroke-width="3.5"/><path d="M0 -17v17l12 8" fill="none" stroke="#2e1a10" stroke-width="3.5" stroke-linecap="round"/><path d="M-40 -6 q-8 -22 12 -32 M40 -6 q8 -22 -12 -32" fill="none" stroke="#f8c78f" stroke-width="3" stroke-linecap="round" stroke-dasharray="3 6"/></g>`,
+  "privilege-escalation": (x, y) => `<g transform="translate(${x},${y})"><path d="M-40 26 h24 v-16 h24 v-16 h24 v-16 h20" fill="none" stroke="#f4a460" stroke-width="5" stroke-linejoin="round"/><path d="M26 -34 l14 -14 l14 14 M40 -48 v30" fill="none" stroke="#f4a460" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><text x="-42" y="-14" font-family="${FONT_COMIC}" font-size="13" font-weight="700" fill="#f8c78f">ADMIN</text></g>`,
+  "stealth": (x, y) => P._ghost(x, y), "defense-evasion": (x, y) => P._ghost(x, y),
+  _ghost: (x, y) => `<g transform="translate(${x},${y})" opacity=".95"><path d="M-24 22 v-30 q0 -26 24 -26 q24 0 24 26 v30 l-8 -7 l-8 7 l-8 -7 l-8 7 l-8 -7z" fill="#fff8ec" stroke="#2e1a10" stroke-width="3"/><circle cx="-8" cy="-10" r="4" fill="#2e1a10"/><circle cx="8" cy="-10" r="4" fill="#2e1a10"/><ellipse cx="0" cy="3" rx="4" ry="5" fill="#2e1a10"/></g>`,
+  "defense-impairment": (x, y) => `<g transform="translate(${x},${y})"><path d="M0 -30 L26 -20 V0 Q26 20 0 32 Q-26 20 -26 0 V-20Z" fill="#a0522d" stroke="#2e1a10" stroke-width="3.5"/><path d="M4 -26 L-6 -6 L6 2 L-4 28" fill="none" stroke="#fff" stroke-width="4" stroke-linejoin="round"/></g>`,
+  "credential-access": (x, y) => `<g transform="translate(${x},${y})"><circle cx="-24" cy="0" r="17" fill="#f4a460" stroke="#2e1a10" stroke-width="3.5"/><circle cx="-24" cy="0" r="6" fill="#2e1a10"/><path d="M-8 0 H44 M30 0 v14 M42 0 v10" stroke="#2e1a10" stroke-width="12" stroke-linecap="round"/><path d="M-8 0 H44 M30 0 v14 M42 0 v10" stroke="#f4a460" stroke-width="6" stroke-linecap="round"/></g>`,
+  "discovery": (x, y) => `<g transform="translate(${x},${y})"><g opacity=".85" stroke="#f4a460" stroke-width="2"><path d="M-40 14 L-10 -14 L20 8 L44 -18 M-10 -14 L-14 26"/></g><g fill="#8a4a2b" stroke="#2e1a10" stroke-width="2.4"><circle cx="-40" cy="14" r="7"/><circle cx="-10" cy="-14" r="7"/><circle cx="20" cy="8" r="7"/><circle cx="44" cy="-18" r="7"/><circle cx="-14" cy="26" r="7"/></g><circle cx="10" cy="-4" r="22" fill="rgba(255,255,255,.16)" stroke="#fff" stroke-width="4"/><path d="M26 12 L44 30" stroke="#fff" stroke-width="6" stroke-linecap="round"/></g>`,
+  "lateral-movement": (x, y) => { const pc = (a) => `<g transform="translate(${a},0)"><rect x="-14" y="-16" width="28" height="20" rx="2" fill="#fbe9d0" stroke="#2e1a10" stroke-width="2.6"/><rect x="-10" y="-12" width="20" height="12" fill="#3a2216"/><path d="M-8 10h16" stroke="#2e1a10" stroke-width="3"/></g>`; return `<g transform="translate(${x},${y})">${pc(-52)}${pc(0)}${pc(52)}<path d="M-38 -26 q12 -22 24 0 M14 -26 q12 -22 24 0" fill="none" stroke="#e35336" stroke-width="3.5" marker-end="url(#ca)"/><circle cx="-52" cy="-30" r="5" fill="#e35336"/></g>`; },
+  "collection": (x, y) => `<g transform="translate(${x},${y})"><path d="M-34 -14 h22 l8 8 h38 v34 h-68z" fill="#f4a460" stroke="#2e1a10" stroke-width="3.5" stroke-linejoin="round"/><rect x="-22" y="-26" width="26" height="30" fill="#fff" stroke="#2e1a10" stroke-width="2.6" transform="rotate(-8)"/><rect x="-2" y="-30" width="26" height="30" fill="#fff" stroke="#2e1a10" stroke-width="2.6" transform="rotate(7)"/></g>`,
+  "command-and-control": (x, y) => `<g transform="translate(${x},${y})"><path d="M0 -34 L18 30 H-18Z" fill="#8a4a2b" stroke="#2e1a10" stroke-width="3.5"/><path d="M-9 8 H9 M-13 20 H13" stroke="#f4a460" stroke-width="3"/><circle cy="-38" r="6" fill="#e35336" stroke="#2e1a10" stroke-width="2.4"/><path d="M-18 -46 q-14 8 0 16 M18 -46 q14 8 0 16 M-30 -54 q-24 16 0 32 M30 -54 q24 16 0 32" fill="none" stroke="#f5f5dc" stroke-width="3" stroke-linecap="round"/></g>`,
+  "exfiltration": (x, y) => `<g transform="translate(${x},${y})"><path d="M-34 14 q-16 0 -16 -14 q0 -14 16 -15 q4 -20 28 -18 q18 0 22 16 q22 -2 22 16 q0 15 -22 15z" fill="#fff4e0" stroke="#2e1a10" stroke-width="3.5"/><path d="M0 -3 v-30 M-10 -22 l10 -12 l10 12" fill="none" stroke="#e35336" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" transform="translate(-4,48) rotate(180 0 -20)"/><rect x="-62" y="30" width="16" height="20" fill="#fff" stroke="#2e1a10" stroke-width="2.4" transform="rotate(-12 -54 40)"/><rect x="40" y="28" width="16" height="20" fill="#fff" stroke="#2e1a10" stroke-width="2.4" transform="rotate(10 48 38)"/></g>`,
+  "impact": (x, y) => `<g transform="translate(${x},${y})"><path d="M-64 -10 l-20 -10 M-64 8 l-24 4 M64 -10 l20 -10 M64 8 l24 4 M0 -62 v-16 M-40 -50 l-10 -14 M40 -50 l10 -14" stroke="#f4a460" stroke-width="4" stroke-linecap="round"/><path d="M-20 -8 v-16 q0 -28 20 -28 q20 0 20 28 v16" fill="none" stroke="#2e1a10" stroke-width="12"/><path d="M-20 -8 v-16 q0 -28 20 -28 q20 0 20 28 v16" fill="none" stroke="#f1dcc0" stroke-width="6"/><rect x="-36" y="-10" width="72" height="54" rx="8" fill="#e35336" stroke="#2e1a10" stroke-width="4"/><circle cy="12" r="8" fill="#2e1a10"/><rect x="-3" y="14" width="6" height="16" fill="#2e1a10"/><rect x="-46" y="-2" width="92" height="20" fill="#f4a460" stroke="#2e1a10" stroke-width="3" transform="rotate(-9)" opacity=".96"/><text x="0" y="14" text-anchor="middle" font-family="${FONT_COMIC}" font-size="13" font-weight="700" fill="#2e1a10" transform="rotate(-9)">ENCRYPTED</text></g>`
+};
+
+function comicSvg(r) {
+  const ev = r.events, PW = 440, PH = 440, M = 20, GAP = 18, W = M * 2 + PW * 2 + GAP, F = FONT_COMIC;
+  // top banner
+  const tl = wrap(r.comic_title, 520, 30, 700, F);
+  const banH = 56 + tl.length * 36 + 40;
+  let out = "", y = M;
+  const first = ev[0].time, last = ev[ev.length - 1].time;
+  out += `<g><rect x="${M}" y="${y}" width="${W - 2 * M}" height="${banH}" fill="#3a2216" stroke="#2e1a10" stroke-width="4"/><rect x="${M}" y="${y}" width="${W - 2 * M}" height="${banH}" fill="url(#dots)"/>
+   <text x="${M + 24}" y="${y + 34}" font-family="${F}" font-size="13" font-weight="700" letter-spacing="3" fill="#f4a460">A CYBER-ATTACK COMIC · ISSUE #1</text>
+   ${tl.map((l, i) => `<text x="${M + 24}" y="${y + 76 + i * 36}" font-family="${F}" font-size="30" font-weight="700" fill="#fff" stroke="#2e1a10" stroke-width="1">${esc(l)}</text>`).join("")}
+   <text x="${M + 24}" y="${y + banH - 18}" font-family="${F}" font-size="13" fill="#f4d9b0">${ev.length} chapters · ${esc(first || "")}${first && last && last !== first ? " → " + esc(last) : ""} · mapped to MITRE ATT&amp;CK v${esc(r.stats.attack_version)}</text>
+   <g transform="translate(${W - M - 120},${y + banH - 12}) scale(1.25)">${hackerSimple()}</g></g>`;
+  y += banH + GAP;
+  const panels = ev.map((e, i) => panel(e, i, r, PW, PH, M + (i % 2) * (PW + GAP), y + Math.floor(i / 2) * (PH + GAP)));
+  const rowsN = Math.ceil(ev.length / 2);
+  y += rowsN * (PH + GAP);
+  // aftermath
+  const mc = {};
+  ev.forEach(e => e.mitigations.forEach(m => mc[m] = (mc[m] || 0) + 1));
+  const top = Object.entries(mc).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  const aH = 70 + Math.max(1, Math.ceil(top.length / 2)) * 44 + 16;
+  let aft = `<g><rect x="${M}" y="${y}" width="${W - 2 * M}" height="${aH}" fill="#fff8ec" stroke="#2e1a10" stroke-width="4"/>
+   <rect x="${M}" y="${y}" width="${W - 2 * M}" height="40" fill="#a0522d" stroke="#2e1a10" stroke-width="4"/>
+   <text x="${M + 18}" y="${y + 27}" font-family="${F}" font-size="18" font-weight="700" fill="#fff">THE DEFENDERS' PLAYBOOK — what could have broken the chain?</text>`;
+  top.forEach(([m, n], i) => {
+    const bx = M + 22 + (i % 2) * ((W - 2 * M) / 2), by = y + 66 + Math.floor(i / 2) * 44;
+    aft += `<path transform="translate(${bx},${by - 18}) scale(.7)" d="M0 -4 L18 -12 L36 -4 V16 Q36 36 18 46 Q0 36 0 16Z" fill="#a0522d" stroke="#2e1a10" stroke-width="3"/><text x="${bx + 38}" y="${by + 2}" font-family="${F}" font-size="14.5" font-weight="700" fill="#2e1a10">${esc(m)}</text><text x="${bx + 38}" y="${by + 19}" font-family="${F}" font-size="11.5" fill="#6b4a38">helps against ${n} of ${ev.length} stages</text>`;
+  });
+  if (!top.length) aft += `<text x="${M + 22}" y="${y + 70}" font-family="${F}" font-size="13" fill="#6b4a38">No mitigations recorded in the ATT&amp;CK data for these techniques.</text>`;
+  aft += `</g>`;
+  const H = y + aH + M;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" font-family="${F}">
+  <defs>
+   <pattern id="dots" width="9" height="9" patternUnits="userSpaceOnUse"><circle cx="2.5" cy="2.5" r="1.3" fill="#ffffff" opacity=".07"/></pattern>
+   <marker id="ca" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#e35336"/></marker>
+  </defs>
+  <rect width="${W}" height="${H}" fill="#f5f5dc"/><rect width="${W}" height="${H}" fill="#f5f5dc"/>
+  ${out}${panels.join("")}${aft}
+  <text x="${W - M}" y="${H - 6}" text-anchor="end" font-size="10" fill="#8c6e5a" font-family="${F}">ThreatLens · generated offline · educational storyboard, not a forensic record</text></svg>`;
+}
+function hackerSimple() { return `<g><circle cx="0" cy="0" r="22" fill="#7a3e1d" stroke="#2e1a10" stroke-width="3"/><ellipse cx="0" cy="2" rx="13" ry="14" fill="#1f110a"/><ellipse cx="-5" cy="-1" rx="3" ry="2.4" fill="#f5f5dc"/><ellipse cx="5" cy="-1" rx="3" ry="2.4" fill="#f5f5dc"/><path d="M-6 8 Q0 13 6 8" stroke="#f5f5dc" stroke-width="1.6" fill="none"/></g>`; }
+
+function panel(e, i, r, PW, PH, X, Y) {
+  const F = FONT_COMIC, m = MOOD[MOODOF[e.tactic] || "indigo"], c = col(e.tactic), idx = e.n - 1;
+  const gid = "g" + i;
+  // speech bubble
+  const bl = wrap(e.attacker_says || "", 172, 13, 700, F).slice(0, 3), bw = Math.min(196, Math.max(...bl.map(l => tw(l, 13, 700, F)), 40) + 26), bh = 16 + bl.length * 16;
+  // narration
+  let nl = wrap(e.narration || "", 392, 13.5, 400, F);
+  if (nl.length > 4) { nl = nl.slice(0, 4); nl[3] = nl[3].replace(/\s*\S*$/, "") + "…"; }
+  const nh = 18 + nl.length * 18, ny = 262;
+  // badges
+  const bad = []; let bx = 14, by = ny + nh + 12, rows = 0;
+  e.techniques.forEach((t, j) => {
+    const label = `${t.id} ${t.name.split(": ").slice(-1)[0]}`; const lw = Math.min(tw(label, 11, 700, F) + 18, 412);
+    if (bx + lw > PW - 12) { bx = 14; by += 25; rows++; }
+    if (rows < 2) bad.push(`<g data-e="${idx}" data-t="${j}" style="cursor:pointer"><title>${esc(t.name + " — " + t.evidence)}</title><rect x="${bx}" y="${by}" width="${lw}" height="20" rx="10" fill="#5a2e18" stroke="#2e1a10" stroke-width="2"/><text x="${bx + lw / 2}" y="${by + 14}" text-anchor="middle" font-family="${F}" font-size="11" font-weight="700" fill="#fff">${esc(clipText(label, lw - 14, 11, F))}</text></g>`);
+    bx += lw + 6;
+  });
+  const tipY = PH - 52;
+  const tipTxt = e.mitigations.length ? "Defender's tip: " + e.mitigations.slice(0, 3).join(" · ") : "Defender's tip: monitor, log and respond early.";
+  const tl = wrap(tipTxt, 372, 11.5, 700, F).slice(0, 2);
+  const prop = (P[e.tactic] || P["execution"])(222, 168);
+  const eyeWide = e.tactic === "impact" ? `<rect x="0" y="40" width="${PW}" height="${PH}" fill="#e35336" opacity=".08"/>` : "";
+  return `<g transform="translate(${X},${Y})">
+  <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${m[0]}"/><stop offset="1" stop-color="${m[1]}"/></linearGradient><clipPath id="c${gid}"><rect width="${PW}" height="${PH}"/></clipPath></defs>
+  <rect width="${PW}" height="${PH}" fill="${m[2]}"/>
+  <g clip-path="url(#c${gid})">
+    <rect y="40" width="${PW}" height="210" fill="url(#${gid})"/><rect y="40" width="${PW}" height="210" fill="url(#dots)"/>
+    ${[0, 1, 2, 3, 4, 5, 6].map(k => `<rect x="${k * 66 - 10}" y="${180 - (k * 37) % 46}" width="52" height="${60 + (k * 37) % 46}" fill="#000" opacity=".18"/>`).join("")}
+    <rect y="236" width="${PW}" height="16" fill="#2e1a10" opacity=".55"/>
+    ${eyeWide}
+    ${building(322, 236, e.tactic, i)}
+    ${prop}
+    ${hacker(84, 238, e.tactic)}
+    <path d="M${24},${52} h${bw} a8 8 0 0 1 8 8 v${bh - 16} a8 8 0 0 1 -8 8 h${-bw + 52} l-14 18 l2 -18 h${-38} a8 8 0 0 1 -8 -8 v${-(bh - 16)} a8 8 0 0 1 8 -8z" fill="#fff" stroke="#2e1a10" stroke-width="3" transform="translate(0,0)"/>
+    ${bl.map((l, k) => `<text x="${24 + 14}" y="${52 + 20 + k * 16}" font-family="${F}" font-size="13" font-weight="700" fill="#2e1a10">${esc(l)}</text>`).join("")}
+    <rect x="0" y="0" width="${PW}" height="40" fill="#f4a460"/><rect x="0" y="0" width="${PW}" height="40" fill="url(#dots)" opacity=".5"/>
+    <circle cx="22" cy="20" r="14" fill="${c}" stroke="#2e1a10" stroke-width="3"/><text x="22" y="25" text-anchor="middle" font-family="${F}" font-size="15" font-weight="700" fill="#fff">${e.n}</text>
+    <text x="44" y="26" font-family="${F}" font-size="16" font-weight="700" fill="#2e1a10">${esc(clipText(e.tactic_name.toUpperCase(), e.time ? 190 : 380, 16, F))}</text>
+    ${e.time ? `<text x="${PW - 12}" y="25" text-anchor="end" font-family="${F}" font-size="12.5" font-weight="700" fill="#2e1a10">${esc(clipText(e.time, 190, 12.5, F))}</text>` : ""}
+    <rect x="10" y="${ny}" width="${PW - 20}" height="${nh}" rx="3" fill="#fff6d2" stroke="#2e1a10" stroke-width="3"/>
+    ${nl.map((l, k) => `<text x="22" y="${ny + 24 + k * 18}" font-family="${F}" font-size="13.5" fill="#2e1a10">${esc(l)}</text>`).join("")}
+    ${bad.join("")}
+    <rect x="10" y="${tipY}" width="${PW - 20}" height="${tl.length * 15 + 16}" rx="6" fill="#fdebd3" stroke="#2e1a10" stroke-width="2.4"/>
+    <path transform="translate(20,${tipY + 6}) scale(.42)" d="M0 -4 L18 -12 L36 -4 V16 Q36 36 18 46 Q0 36 0 16Z" fill="#a0522d" stroke="#2e1a10" stroke-width="4"/>
+    ${tl.map((l, k) => `<text x="46" y="${tipY + 18 + k * 15}" font-family="${F}" font-size="11.5" font-weight="700" fill="#2e1a10">${esc(l)}</text>`).join("")}
+  </g>
+  <rect width="${PW}" height="${PH}" fill="none" stroke="#2e1a10" stroke-width="6"/></g>`;
+}
+function clipText(t, maxW, size, fam) { if (tw(t, size, 700, fam) <= maxW) return t; while (t.length > 3 && tw(t + "…", size, 700, fam) > maxW) t = t.slice(0, -1); return t + "…"; }
+
+/* ---------- evidence / inspect ---------- */
+function evidenceHtml(r) {
+  let rows = "";
+  r.events.forEach((e, i) => e.techniques.forEach((t, j) => {
+    rows += `<tr class="link" data-e="${i}" data-t="${j}"><td>${e.n}</td><td><b>${esc(e.tactic_name)}</b><div style="color:var(--muted);font-size:11.5px">${esc(e.time || "—")}</div></td>
+    <td><span class="tag">${t.id}</span></td><td>${esc(t.name)}${t.tools.length ? `<div style="color:var(--muted);font-size:11.5px">tool: ${esc(t.tools.join(", "))}</div>` : ""}</td>
+    <td><span class="bar"><i style="width:${Math.round(t.conf * 100)}%"></i></span>${Math.round(t.conf * 100)}%</td><td><span class="tag ${t.source === "rag-only" ? "" : "good"}" title="${esc(reasonText(t))}">${esc(sourceText(t.source))}</span></td>
+    <td style="max-width:420px;color:#4a2c1c">${esc(t.evidence)}</td></tr>`;
+  }));
+  return `<div style="overflow:auto;max-height:640px"><table><thead><tr><th>#</th><th>Stage · time</th><th>ID</th><th>Technique (official MITRE name)</th><th>Confidence</th><th>Source</th><th>Evidence sentence from the report</th></tr></thead><tbody>${rows}</tbody></table></div>
+  <div class="note">Click a row for the full explanation (hover the Source tag for the exact reason). A technique found only through a keyword or tool name (for example “VPN” or “PsExec”) is an inference, not something the report states outright. Confidence = strength of direct textual evidence (technique ID / official name / analyst alias) plus LLM agreement &mdash; it is a heuristic, not a probability.</div>`;
+}
+function paperJson(r) {
+  return r.events.map(e => ({ Phase: e.tactic_name, date: e.time, Technique: e.techniques.map(techLabel).join("\n") }));
+}
+function inspectHtml(r) {
+  const I = r.inspect;
+  const sents = `<table><thead><tr><th>#</th><th>Sentence</th><th>Time cue</th></tr></thead><tbody>${I.sentences.map(s => `<tr><td>${s.i}</td><td>${esc(s.text)}</td><td style="white-space:nowrap;color:var(--muted)">${esc([...(s.when.dates || []), s.when.day != null ? "Day " + s.when.day : "", ...(s.when.times || []).map(t => t[1] + (t[2] ? " " + t[2] : ""))].filter(Boolean).join(" · ") || "—")}</td></tr>`).join("")}</tbody></table>`;
+  const chunks = I.chunks.map((c, i) => `<div style="margin:6px 0"><span class="tag">chunk ${i + 1}</span> sentences ${c[0]}–${c[c.length - 1]}</div>`).join("");
+  const cands = `<table><thead><tr><th>#</th><th>Retrieved candidates (score · evidence)</th></tr></thead><tbody>${I.candidates.map(c => `<tr><td>${c.i}</td><td>${c.cands.length ? c.cands.map(x => `<div><span class="tag">${x.id}</span> ${esc(x.name)} <span style="color:var(--muted)">· ${x.score} · ${esc(x.why.join(", ") || "bm25")}</span></div>`).join("") : '<span style="color:var(--muted)">none (or defender advice, skipped)</span>'}</td></tr>`).join("")}</tbody></table>`;
+  const rej = I.rejected.length ? `<table><thead><tr><th>Claimed ID</th><th>Why the validator rejected it</th></tr></thead><tbody>${I.rejected.map(x => `<tr><td><span class="tag">${esc(x.id || "?")}</span></td><td>${esc(x.why)}</td></tr>`).join("")}</tbody></table>` : `<div class="note">Nothing rejected${r.stats.llm ? "" : " (RAG-only mode has no LLM claims to reject)"}.</div>`;
+  return `<details open><summary>Validated output — same JSON shape as the paper's Fig. 3</summary><div><pre>${esc(JSON.stringify(paperJson(r), null, 2))}</pre></div></details>
+  <details><summary>Rejected claims (${I.rejected.length}) — hallucination guard</summary><div>${rej}</div></details>
+  <details><summary>Semantic chunks (${I.chunks.length})</summary><div>${chunks}</div></details>
+  <details><summary>Sentences &amp; detected time cues (${I.sentences.length})</summary><div style="overflow:auto;max-height:360px">${sents}</div></details>
+  <details><summary>Retrieved ATT&amp;CK candidates per sentence</summary><div style="overflow:auto;max-height:420px">${cands}</div></details>
+  <details><summary>Raw local-LLM responses (${I.llm_raw.length})</summary><div><pre>${esc(JSON.stringify(I.llm_raw, null, 2))}</pre></div></details>`;
+}
+
+/* ---------- drawer ---------- */
+function openDrawer(ei, tj) {
+  const e = S.result.events[ei], t = e.techniques[tj], d = $("#drawer");
+  const ev = esc(t.evidence);
+  d.innerHTML = `<button class="small x" onclick="document.getElementById('drawer').classList.remove('open')">✕</button>
+   <span class="tag">${t.id}</span> <span class="tag">${esc(t.tactic_name)}</span>
+   <h2>${esc(t.name)}</h2>
+   <div style="color:var(--muted);font-size:12.5px">Stage ${e.n} · ${esc(e.tactic_name)} · ${esc(e.time || "no time cue in report")}</div>
+   <h3 style="margin:16px 0 4px;font-size:12px;letter-spacing:1px;color:var(--muted)">EVIDENCE IN THE REPORT</h3><blockquote><span class="hl">${ev}</span></blockquote>
+   <div style="font-size:12.5px;color:var(--muted)">Detected via <b style="color:var(--text)">${esc(sourceText(t.source))}</b> · ${esc(reasonText(t))} · confidence ${Math.round(t.conf * 100)}%${t.tools.length ? " · tool: " + esc(t.tools.join(", ")) : ""}</div>
+   <h3 style="margin:16px 0 4px;font-size:12px;letter-spacing:1px;color:var(--muted)">WHAT THE TECHNIQUE MEANS (MITRE ATT&amp;CK)</h3><div style="line-height:1.6;color:#4a2c1c">${esc(t.desc)}${t.desc.length >= 590 ? "…" : ""}</div>
+   <h3 style="margin:16px 0 4px;font-size:12px;letter-spacing:1px;color:var(--muted)">MITIGATIONS</h3>${t.mitigations.length ? `<ul>${t.mitigations.map(m => `<li>${esc(m)}</li>`).join("")}</ul>` : '<div style="color:var(--muted)">None listed by MITRE for this technique.</div>'}
+   <div class="note">Reference (needs internet, optional): attack.mitre.org/techniques/${t.id.replace(".", "/")}/</div>`;
+  d.classList.add("open");
+}
+document.addEventListener("keydown", e => { if (e.key === "Escape") $("#drawer").classList.remove("open"); });
+
+/* ---------- export ---------- */
+function download(name, blob) { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
+function currentSvg() {
+  if (!S.result || !S.result.events.length) return null;
+  if (S.view === "comic") return [comicSvg(S.result), "comic"];
+  return [timelineSvg(S.result), "timeline"];
+}
+function slug() { return (S.result?.title || "attack").toLowerCase().replace(/[^a-z0-9]+/g, "-"); }
+$("#bPng").onclick = () => {
+  const c = currentSvg(); if (!c) return toast("Run an analysis first.");
+  const img = new Image(), url = URL.createObjectURL(new Blob([c[0]], { type: "image/svg+xml;charset=utf-8" }));
+  img.onload = () => {
+    const w = img.width, h = img.height, sc = Math.min(2, 12000 / Math.max(w, h)), cv = document.createElement("canvas");
+    cv.width = w * sc; cv.height = h * sc; const g = cv.getContext("2d"); g.fillStyle = "#FFFDF6"; g.fillRect(0, 0, cv.width, cv.height); g.scale(sc, sc); g.drawImage(img, 0, 0);
+    cv.toBlob(b => download(`${slug()}-${c[1]}.png`, b), "image/png"); URL.revokeObjectURL(url);
+  };
+  img.onerror = () => toast("PNG export failed — use SVG instead.");
+  img.src = url;
+};
+$("#bJson").onclick = () => { if (!S.result) return toast("Run an analysis first."); download(`${slug()}-phases.json`, new Blob([JSON.stringify(paperJson(S.result), null, 2)], { type: "application/json" })); };
+
+/* ---------- boot ---------- */
+setMode(S.mode);
+renderAll();
+loadStatus();
+loadSamples();
+</script>
+</body>
+</html>
